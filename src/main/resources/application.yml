@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rabbitmq-cluster-switch
+  rabbitmq:
+    addresses: ${APP_RABBITMQ_ADDRESSES:rabbitmq.cluster.local:5672}
+    username: ${APP_RABBITMQ_USERNAME:guest}
+    password: ${APP_RABBITMQ_PASSWORD:guest}
+    requested-heartbeat: 5s
+    connection-timeout: 3s
+    listener:
+      simple:
+        missing-queues-fatal: false
+
+app:
+  dns-watchdog:
+    enabled: ${APP_DNS_WATCHDOG_ENABLED:true}
+    poll-interval-ms: 2000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.example.rmqswitch: INFO
+    org.springframework.amqp.rabbit: INFO

@@ -1,0 +1,28 @@
+### Gradle & Build ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### JVM & Heap Dumps ###
+heapdumps/
+*.hprof
+hs_err_pid*.log
+replay_pid*.log
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+.classpath
+.project
+.settings/
+
+### OS & Temp ###
+.DS_Store
+*.log
+*.swp
+*.swo
+*~

@@ -1,0 +1,190 @@
+services:
+  coredns:
+    image: coredns/coredns:1.11.1
+    container_name: rmq-coredns
+    command: -conf /etc/coredns/Corefile
+    volumes:
+      - ./docker/coredns:/etc/coredns
+    ports:
+      - "1053:53/udp"
+      - "1053:53/tcp"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.0.53
+    restart: unless-stopped
+
+  rmq-a-node1:
+    image: rabbitmq:3.13.7-management
+    container_name: rmq-a-node1
+    hostname: rmq-a-node1
+    environment:
+      RABBITMQ_ERLANG_COOKIE: CLUSTER_A_COOKIE
+    volumes:
+      - ./docker/rabbitmq/cluster-a/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.1.11
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  rmq-a-node2:
+    image: rabbitmq:3.13.7-management
+    container_name: rmq-a-node2
+    hostname: rmq-a-node2
+    environment:
+      RABBITMQ_ERLANG_COOKIE: CLUSTER_A_COOKIE
+    volumes:
+      - ./docker/rabbitmq/cluster-a/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.1.12
+    depends_on:
+      rmq-a-node1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  rmq-a-node3:
+    image: rabbitmq:3.13.7-management
+    container_name: rmq-a-node3
+    hostname: rmq-a-node3
+    environment:
+      RABBITMQ_ERLANG_COOKIE: CLUSTER_A_COOKIE
+    volumes:
+      - ./docker/rabbitmq/cluster-a/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.1.13
+    depends_on:
+      rmq-a-node1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  rmq-b-node1:
+    image: rabbitmq:3.13.7-management
+    container_name: rmq-b-node1
+    hostname: rmq-b-node1
+    environment:
+      RABBITMQ_ERLANG_COOKIE: CLUSTER_B_COOKIE
+    volumes:
+      - ./docker/rabbitmq/cluster-b/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5675:5672"
+      - "15675:15672"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.2.11
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  rmq-b-node2:
+    image: rabbitmq:3.13.7-management
+    container_name: rmq-b-node2
+    hostname: rmq-b-node2
+    environment:
+      RABBITMQ_ERLANG_COOKIE: CLUSTER_B_COOKIE
+    volumes:
+      - ./docker/rabbitmq/cluster-b/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5676:5672"
+      - "15676:15672"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.2.12
+    depends_on:
+      rmq-b-node1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  rmq-b-node3:
+    image: rabbitmq:3.13.7-management
+    container_name: rmq-b-node3
+    hostname: rmq-b-node3
+    environment:
+      RABBITMQ_ERLANG_COOKIE: CLUSTER_B_COOKIE
+    volumes:
+      - ./docker/rabbitmq/cluster-b/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5677:5672"
+      - "15677:15672"
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.2.13
+    depends_on:
+      rmq-b-node1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  rabbit-app:
+    build: .
+    container_name: rmq-switch-app
+    dns:
+      - 172.28.0.53
+    ports:
+      - "8080:8080"
+    environment:
+      APP_RABBITMQ_ADDRESSES: rabbitmq.cluster.local:5672
+    volumes:
+      - ./heapdumps:/app/heapdumps
+    networks:
+      rmq-net:
+        ipv4_address: 172.28.3.10
+    depends_on:
+      coredns:
+        condition: service_started
+      rmq-a-node1:
+        condition: service_healthy
+      rmq-a-node2:
+        condition: service_healthy
+      rmq-a-node3:
+        condition: service_healthy
+      rmq-b-node1:
+        condition: service_healthy
+      rmq-b-node2:
+        condition: service_healthy
+      rmq-b-node3:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  rmq-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
